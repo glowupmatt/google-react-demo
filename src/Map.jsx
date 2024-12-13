@@ -1,93 +1,28 @@
-// import { useCallback, useContext } from "react";
-// import { LocationContext } from "./context/LocationContext";
-// import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
-
-// const Map = () => {
-//   const {
-//     coordsResult,
-//     setCoordsResult,
-//     center,
-//     selectedPlace,
-//     setSelectedPlace,
-//   } = useContext(LocationContext);
-
-//   const onMapLoad = useCallback(
-//     (map) => {
-//       let request = {
-//         location: new window.google.maps.LatLng(47.583471, -122.035027),
-//         radius: "5000",
-//         types: ["gas_station"],
-//       };
-
-//           let service = new window.google.maps.places.PlacesService(map);
-
-//       service.nearbySearch(request, (results, status, pagination) => {
-//         if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-//           console.log(results, "====== service ======");
-//           setCoordsResult(results);
-//           if (pagination.hasNextPage) {
-//             pagination.nextPage();
-//           }
-//         }
-//       });
-//     },
-//     [setCoordsResult]
-//   );
-//   return (
-//     <div>
-//       <GoogleMap
-//         center={center}
-//         zoom={13}
-//         onLoad={onMapLoad}
-//         mapContainerStyle={{ height: "100vh", width: "100vw" }}
-//       >
-//         {coordsResult.length > 0 &&
-//           coordsResult.map((result, i) => (
-//             <Marker
-//               key={i}
-//               position={result.geometry.location}
-//               onClick={() => setSelectedPlace(result)}
-//             >
-//               {selectedPlace &&
-//                 selectedPlace.geometry.location.lat() ===
-//                   result.geometry.location.lat() &&
-//                 selectedPlace.geometry.location.lng() ===
-//                   result.geometry.location.lng() && (
-//                   <InfoWindow
-//                     position={result.geometry.location}
-//                     onCloseClick={() => setSelectedPlace(null)}
-//                   >
-//                     <span>{result.name}</span>
-//                   </InfoWindow>
-//                 )}
-//             </Marker>
-//           ))}
-//       </GoogleMap>
-//     </div>
-//   );
-// };
-
-// export default Map;
-import { useCallback, useContext } from "react";
+import { useEffect, useContext, useCallback } from "react";
 import { LocationContext } from "./context/LocationContext";
-import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
 import "./index.css";
+import SelectedStation from "./components/SelectedStation";
 
 const Map = () => {
   const {
     coordsResult,
     setCoordsResult,
     center,
+    map,
+    setMap,
     selectedPlace,
     setSelectedPlace,
+    reloadMap,
   } = useContext(LocationContext);
 
   const onMapLoad = useCallback(
     (map) => {
+      setMap(map);
       let request = {
-        location: new window.google.maps.LatLng(47.583471, -122.035027),
+        location: new window.google.maps.LatLng(center.lat, center.lng),
         radius: "5000",
-        types: ["gas_station"],
+        types: ["gas_station", "charging_station", "car_charging"],
       };
 
       let service = new window.google.maps.places.PlacesService(map);
@@ -100,9 +35,22 @@ const Map = () => {
         }
       });
     },
-    [setCoordsResult]
+    [setCoordsResult, center, setMap]
   );
 
+  useEffect(() => {
+    if (map) {
+      onMapLoad(map);
+    }
+  }, [reloadMap, map, onMapLoad, center]);
+
+  // Mimic componentDidUpdate for center
+  useEffect(() => {
+    console.log("Center updated:", center);
+    if (map) {
+      map.setCenter(new window.google.maps.LatLng(center.lat, center.lng));
+    }
+  }, [center, map]);
   const fetchPlaceDetails = (placeId) => {
     const service = new window.google.maps.places.PlacesService(
       document.createElement("div")
@@ -120,7 +68,6 @@ const Map = () => {
 
     service.getDetails(request, (place, status) => {
       if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-        console.log(place, "====== place details ======");
         setSelectedPlace(place);
       }
     });
@@ -130,45 +77,34 @@ const Map = () => {
     <div>
       <GoogleMap
         center={center}
-        zoom={13}
+        panTo={center}
+        zoom={16}
         onLoad={onMapLoad}
         mapContainerStyle={{ height: "100vh", width: "100vw" }}
       >
+        <Marker position={center} />
         {coordsResult.length > 0 &&
-          coordsResult.map((result, i) => (
-            <Marker
-              key={i}
-              position={result.geometry.location}
-              onClick={() => fetchPlaceDetails(result.place_id)}
-            >
-              {selectedPlace &&
-                selectedPlace.geometry.location.lat() ===
-                  result.geometry.location.lat() &&
-                selectedPlace.geometry.location.lng() ===
-                  result.geometry.location.lng() && (
-                  <InfoWindow
-                    position={result.geometry.location}
-                    onCloseClick={() => setSelectedPlace(null)}
-                  >
-                    <div>
-                      <h2>{selectedPlace.name}</h2>
-                      <p>Rating: {selectedPlace.rating}</p>
-                      <p>Phone: {selectedPlace.formatted_phone_number}</p>
-                      {selectedPlace.photos &&
-                        selectedPlace.photos.length > 0 && (
-                          <div className="image-container">
-                            <img
-                              className="image"
-                              src={selectedPlace.photos[0].getUrl()}
-                              alt="place"
-                            />
-                          </div>
-                        )}
-                    </div>
-                  </InfoWindow>
-                )}
-            </Marker>
-          ))}
+          coordsResult.map((result, i) => {
+            return (
+              <div key={i}>
+                <Marker
+                  position={result.geometry.location}
+                  onClick={() => fetchPlaceDetails(result.place_id)}
+                >
+                  {selectedPlace &&
+                    selectedPlace.geometry.location.lat() ===
+                      result.geometry.location.lat() &&
+                    selectedPlace.geometry.location.lng() ===
+                      result.geometry.location.lng() && (
+                      <SelectedStation
+                        selectedPlace={selectedPlace}
+                        result={result}
+                      />
+                    )}
+                </Marker>
+              </div>
+            );
+          })}
       </GoogleMap>
     </div>
   );

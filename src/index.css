@@ -35,10 +35,29 @@
   color: #fff;
   transition: 0.5s;
   z-index: 100;
+  overflow-y: scroll;
+  max-width: 20rem;
+}
+
+.pan-to-location {
+  top: 18rem;
 }
 
 .image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.stations-list-container {
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.station-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
